@@ -27,7 +27,7 @@ export class InventoryConsumer {
       logger.info('🐰 Inventory Consumer waiting for messages...');
 
       // 2. Start listening for messages
-      channel.consume(queue, async (msg) => {
+      channel.consume(queue, async (msg:any) => {
         if (!msg) return;
 
         try {
