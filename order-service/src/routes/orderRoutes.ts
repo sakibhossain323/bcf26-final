@@ -5,7 +5,7 @@ const router = Router();
 
 router.post('/', orderController.createOrder);
 router.post('/:orderId/ship', orderController.shipOrder);
-router.get('/:orderId', orderController.getOrder);
 router.get('/health', orderController.healthCheck);
+router.get('/:orderId', orderController.getOrder);
 
 export default router;
