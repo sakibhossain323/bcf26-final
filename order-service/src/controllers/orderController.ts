@@ -23,7 +23,7 @@ export class OrderController {
   }
 
   async shipOrder(req: Request, res: Response) {
-    const  orderId :string = req.params.orderId as string;
+    const orderId: string = req.params.orderId as string;
 
     try {
       const result = await orderService.shipOrder(orderId);
@@ -44,7 +44,7 @@ export class OrderController {
   }
 
   async getOrder(req: Request, res: Response) {
-    const  orderId :string = req.params.orderId as string;
+    const orderId: string = req.params.orderId as string;
 
     try {
       const order = await orderService.getOrder(orderId);
@@ -95,6 +95,34 @@ export class OrderController {
         service: 'order-service',
         error: error.message,
         timestamp: new Date().toISOString(),
+      });
+    }
+  }
+
+  async updateStatus(req: Request, res: Response) {
+    const orderId: string = req.params.orderId as string;
+    const { status } = req.body;
+
+    try {
+      const updatedOrder = await orderService.updateOrderStatus(orderId, status);
+
+      if (!updatedOrder) {
+        return res.status(404).json({
+          success: false,
+          message: 'Order not found',
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        data: updatedOrder,
+      });
+    } catch (error: any) {
+      logger.error('Error updating order status:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to update order status',
+        error: error.message,
       });
     }
   }
