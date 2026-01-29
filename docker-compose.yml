@@ -74,6 +74,7 @@ services:
       - "3001:3001"
     environment:
       PORT: 3001
+      NODE_ENV: development
       # Database connection (matches order-db above)
       DATABASE_URL: postgresql://orderuser:orderpass@order-db:5432/orderdb
       # RabbitMQ connection (matches rabbitmq above)
@@ -100,6 +101,7 @@ services:
       - "3002:3002"
     environment:
       PORT: 3002
+      NODE_ENV: development
       # Database connection (matches inventory-db above)
       DATABASE_URL: postgresql://inventoryuser:inventorypass@inventory-db:5432/inventorydb
       ENABLE_CHAOS: "true"

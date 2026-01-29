@@ -12,5 +12,5 @@ COPY --from=builder /app/package.json ./
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/.env ./
 RUN npm install --omit=dev
-EXPOSE 3005
+EXPOSE 3001
 CMD ["node", "--env-file", ".env", "dist/index.js"]
