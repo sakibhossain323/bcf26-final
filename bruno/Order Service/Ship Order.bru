@@ -1,0 +1,15 @@
+meta {
+  name: Ship Order
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/orders/:orderId/ship
+  body: none
+  auth: none
+}
+
+params:path {
+  orderId: ORD-1769680919910-7fa501a2
+}

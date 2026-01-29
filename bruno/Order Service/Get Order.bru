@@ -1,0 +1,15 @@
+meta {
+  name: Get Order
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/orders/:orderId
+  body: none
+  auth: none
+}
+
+params:path {
+  orderId: ORD-1769680919910-7fa501a2
+}
