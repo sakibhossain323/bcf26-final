@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # ----------------------------
   # CORE INFRASTRUCTURE
@@ -14,7 +12,7 @@ services:
       POSTGRES_PASSWORD: orderpass
       POSTGRES_DB: orderdb
     ports:
-      - "5432:5432"
+      - "5435:5432"  # CHANGED: 5435 to avoid local port conflict
     volumes:
       - order-db-data:/var/lib/postgresql/data
     healthcheck:
@@ -75,11 +73,12 @@ services:
       context: ./order-service
       dockerfile: Dockerfile
     container_name: order-service
+    # FIXED: Runs install first to ensure 'tsx' and modules exist in the container
+    command: sh -c "npm install && npm run dev"
     ports:
       - "3001:3001"
     environment:
       PORT: 3001
-      # Note: using container names for hostnames
       DATABASE_URL: postgresql://orderuser:orderpass@order-db:5432/orderdb
       RABBITMQ_URL: amqp://admin:admin@rabbitmq:5672
       INVENTORY_SERVICE_URL: http://inventory-service:3002
@@ -100,6 +99,8 @@ services:
       context: ./inventory-service
       dockerfile: Dockerfile
     container_name: inventory-service
+    # FIXED: Runs install first to ensure 'tsx' and modules exist in the container
+    command: sh -c "npm install && npm run dev"
     ports:
       - "3002:3002"
     environment:
@@ -116,21 +117,21 @@ services:
       - app-network
 
   # ----------------------------
-  # KONG API GATEWAY (FIXED)
+  # KONG API GATEWAY
   # ----------------------------
 
-  # Kong Database
+  # Kong Database (Using PG 15 for compatibility)
   kong-database:
-    image: postgres:latest
+    image: postgres:15-alpine
     container_name: kong-db
     environment:
       POSTGRES_USER: kong
       POSTGRES_DB: kong
       POSTGRES_PASSWORD: kong123
     ports:
-      - "5434:5432"  # CHANGED to 5434 to avoid conflict with inventory-db (5433)
+      - "5434:5432"
     volumes:
-      - kong-db-data:/var/lib/postgresql/data # Added persistence back
+      - kong-db-data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "kong"]
       interval: 10s
@@ -146,11 +147,10 @@ services:
     command: kong migrations bootstrap
     environment:
       KONG_DATABASE: postgres
-      KONG_PG_HOST: kong-db
+      KONG_PG_HOST: kong-database
       KONG_PG_PORT: 5432
       KONG_PG_USER: kong
       KONG_PG_PASSWORD: kong123
-      # 👇 CRITICAL FIXES APPLIED 👇
       KONG_PG_SSL: "off"
       KONG_DNS_ORDER: A,CNAME,LAST
       KONG_PG_TIMEOUT: 10000
@@ -167,11 +167,10 @@ services:
     container_name: kong-gateway
     environment:
       KONG_DATABASE: postgres
-      KONG_PG_HOST: kong-db
+      KONG_PG_HOST: kong-database
       KONG_PG_PORT: 5432
       KONG_PG_USER: kong
       KONG_PG_PASSWORD: kong123
-      # 👇 CRITICAL FIXES APPLIED 👇
       KONG_PG_SSL: "off"
       KONG_DNS_ORDER: A,CNAME,LAST
       KONG_PROXY_ACCESS_LOG: /dev/stdout
@@ -199,7 +198,7 @@ services:
       - app-network
     restart: on-failure
 
-  # Konga UI (Added from your snippet)
+  # Konga UI
   konga:
     image: pantsel/konga
     container_name: konga-ui
@@ -221,7 +220,7 @@ services:
     image: prom/prometheus:latest
     container_name: prometheus
     ports:
-      - "9090:9090"
+      - "9091:9090"  # CHANGED: 9091 to avoid local conflict
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
       - prometheus-data:/prometheus
