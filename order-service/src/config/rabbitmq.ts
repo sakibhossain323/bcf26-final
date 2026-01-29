@@ -1,43 +1,83 @@
-import amqp, { Connection, Channel } from 'amqplib';
-import { logger } from '../utils/logger';
+import amqp, { Connection, Channel } from 'amqplib/callback_api.js';
 
-class RabbitMQConnection {
+export class RabbitMQConnectionManager {
   private connection: Connection | null = null;
   private channel: Channel | null = null;
-  private readonly url: string;
+  private url: string;
+  private isConnecting: boolean = false;
 
-  constructor() {
-    this.url = process.env.RABBITMQ_URL || 'amqp://localhost:5672';
+  constructor(url: string) {
+    this.url = url;
   }
 
   async connect(): Promise<void> {
-    try {
-      this.connection = await amqp.connect(this.url);
-      this.channel = await this.connection.createChannel();
-
-      // Setup exchanges and queues
-      await this.channel.assertExchange('inventory_exchange', 'direct', { durable: true });
-      await this.channel.assertQueue('inventory_updates', { durable: true });
-      await this.channel.bindQueue('inventory_updates', 'inventory_exchange', 'inventory.update');
-
-      logger.info('✓ RabbitMQ connected successfully');
-    } catch (error) {
-      logger.error('✗ RabbitMQ connection failed:', error);
-      throw error;
+    if (this.isConnecting) {
+      console.log('Connection already in progress...');
+      return;
     }
+
+    this.isConnecting = true;
+
+    return new Promise((resolve, reject) => {
+      console.log('🔌 Connecting to RabbitMQ...');
+
+      amqp.connect(this.url, (error: Error | null, connection: Connection) => {
+        if (error) {
+          this.isConnecting = false;
+          console.error('❌ RabbitMQ Connection Error:', error.message);
+          reject(error);
+          return;
+        }
+
+        this.connection = connection;
+
+        // Handle connection events
+        connection.on('error', (err: Error) => {
+          console.error('❌ RabbitMQ connection error:', err.message);
+        });
+
+        connection.on('close', () => {
+          console.log('🔌 RabbitMQ connection closed');
+          this.connection = null;
+          this.channel = null;
+          setTimeout(() => this.connect(), 5000);
+        });
+
+        // Create channel
+        connection.createChannel((error: Error | null, channel: Channel) => {
+          this.isConnecting = false;
+
+          if (error) {
+            console.error('❌ Channel creation error:', error.message);
+            reject(error);
+            return;
+          }
+
+          this.channel = channel;
+          console.log('✅ RabbitMQ connected successfully!');
+          resolve();
+        });
+      });
+    });
   }
 
   getChannel(): Channel {
     if (!this.channel) {
-      throw new Error('RabbitMQ channel not initialized');
+      throw new Error('Channel not initialized. Call connect() first.');
     }
     return this.channel;
   }
 
   async close(): Promise<void> {
-    await this.channel?.close();
-    await this.connection?.close();
+    if (this.channel) {
+      await new Promise<void>((resolve) => {
+        this.channel!.close(() => resolve());
+      });
+    }
+    if (this.connection) {
+      await new Promise<void>((resolve) => {
+        this.connection!.close(() => resolve());
+      });
+    }
   }
 }
-
-export const rabbitMQ = new RabbitMQConnection();
