@@ -5,7 +5,9 @@
     "dev:nodemon": "nodemon --watch src --exec tsx src/index.ts",
     "build": "tsc -p tsconfig.build.json",
     "start": "node --env-file .env dist/index.js",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "migrate": "drizzle-kit generate",
+    "push": "drizzle-kit push"
   },
   "dependencies": {
     "express": "^5.2.1",
