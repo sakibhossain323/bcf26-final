@@ -183,6 +183,15 @@ class OrderService {
       return false;
     }
   }
+
+  async updateOrderStatus(orderId: string, status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled') {
+    const [updatedOrder] = await db.update(orders)
+      .set({ status, updatedAt: new Date() })
+      .where(eq(orders.orderId, orderId))
+      .returning();
+
+    return updatedOrder;
+  }
 }
 
 export const orderService = new OrderService();
