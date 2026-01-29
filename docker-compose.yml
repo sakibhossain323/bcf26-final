@@ -2,8 +2,7 @@ services:
   # ----------------------------
   # CORE INFRASTRUCTURE
   # ----------------------------
-  
-  # PostgreSQL for Order Service
+
   order-db:
     image: postgres:15-alpine
     container_name: order-db
@@ -12,7 +11,7 @@ services:
       POSTGRES_PASSWORD: orderpass
       POSTGRES_DB: orderdb
     ports:
-      - "5435:5432"  # CHANGED: 5435 to avoid local port conflict
+      - "5435:5432"
     volumes:
       - order-db-data:/var/lib/postgresql/data
     healthcheck:
@@ -23,7 +22,6 @@ services:
     networks:
       - app-network
 
-  # PostgreSQL for Inventory Service
   inventory-db:
     image: postgres:15-alpine
     container_name: inventory-db
@@ -43,7 +41,6 @@ services:
     networks:
       - app-network
 
-  # RabbitMQ
   rabbitmq:
     image: rabbitmq:3-management-alpine
     container_name: rabbitmq
@@ -67,19 +64,19 @@ services:
   # MICROSERVICES
   # ----------------------------
 
-  # Order Service
   order-service:
     build:
       context: ./order-service
       dockerfile: Dockerfile
     container_name: order-service
-    # FIXED: Runs install first to ensure 'tsx' and modules exist in the container
-    command: sh -c "npm install && npm run dev"
+    command: sh -c "npm install && npx tsx --watch src/index.ts"
     ports:
       - "3001:3001"
     environment:
       PORT: 3001
+      # Database connection (matches order-db above)
       DATABASE_URL: postgresql://orderuser:orderpass@order-db:5432/orderdb
+      # RabbitMQ connection (matches rabbitmq above)
       RABBITMQ_URL: amqp://admin:admin@rabbitmq:5672
       INVENTORY_SERVICE_URL: http://inventory-service:3002
     depends_on:
@@ -93,18 +90,17 @@ services:
     networks:
       - app-network
 
-  # Inventory Service
   inventory-service:
     build:
       context: ./inventory-service
       dockerfile: Dockerfile
     container_name: inventory-service
-    # FIXED: Runs install first to ensure 'tsx' and modules exist in the container
-    command: sh -c "npm install && npm run dev"
+    command: sh -c "npm install && npx tsx --watch src/index.ts"
     ports:
       - "3002:3002"
     environment:
       PORT: 3002
+      # Database connection (matches inventory-db above)
       DATABASE_URL: postgresql://inventoryuser:inventorypass@inventory-db:5432/inventorydb
       ENABLE_CHAOS: "true"
     depends_on:
@@ -117,10 +113,8 @@ services:
       - app-network
 
   # ----------------------------
-  # KONG API GATEWAY
+  # KONG API GATEWAY (Optional)
   # ----------------------------
-
-  # Kong Database (Using PG 15 for compatibility)
   kong-database:
     image: postgres:15-alpine
     container_name: kong-db
@@ -140,7 +134,6 @@ services:
     networks:
       - app-network
 
-  # Kong Migration
   kong-migration:
     image: kong:latest
     container_name: kong-migration
@@ -152,19 +145,15 @@ services:
       KONG_PG_USER: kong
       KONG_PG_PASSWORD: kong123
       KONG_PG_SSL: "off"
-      KONG_DNS_ORDER: A,CNAME,LAST
-      KONG_PG_TIMEOUT: 10000
     depends_on:
       kong-database:
         condition: service_healthy
     networks:
       - app-network
-    restart: on-failure
 
-  # Kong Gateway
   kong:
     image: kong:latest
-    container_name: kong-gateway
+    container_name: kong
     environment:
       KONG_DATABASE: postgres
       KONG_PG_HOST: kong-database
@@ -172,7 +161,6 @@ services:
       KONG_PG_USER: kong
       KONG_PG_PASSWORD: kong123
       KONG_PG_SSL: "off"
-      KONG_DNS_ORDER: A,CNAME,LAST
       KONG_PROXY_ACCESS_LOG: /dev/stdout
       KONG_ADMIN_ACCESS_LOG: /dev/stdout
       KONG_PROXY_ERROR_LOG: /dev/stderr
@@ -184,76 +172,16 @@ services:
       - "8001:8001"
       - "8002:8002"
     depends_on:
-      kong-database:
-        condition: service_healthy
       kong-migration:
         condition: service_completed_successfully
-    healthcheck:
-      test: ["CMD", "kong", "health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
-    networks:
-      - app-network
-    restart: on-failure
-
-  # Konga UI
-  konga:
-    image: pantsel/konga
-    container_name: konga-ui
-    environment:
-      NODE_ENV: production
-    ports:
-      - "1337:1337"
-    depends_on:
-      - kong
-    networks:
-      - app-network
-
-  # ----------------------------
-  # MONITORING
-  # ----------------------------
-
-  # Prometheus
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: prometheus
-    ports:
-      - "9091:9090"  # CHANGED: 9091 to avoid local conflict
-    volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
-      - prometheus-data:/prometheus
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-    networks:
-      - app-network
-
-  # Grafana
-  grafana:
-    image: grafana/grafana:latest
-    container_name: grafana
-    ports:
-      - "3000:3000"
-    environment:
-      GF_SECURITY_ADMIN_PASSWORD: admin
-    volumes:
-      - grafana-data:/var/lib/grafana
-      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
-      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
-    depends_on:
-      - prometheus
     networks:
       - app-network
 
 volumes:
   order-db-data:
   inventory-db-data:
-  kong-db-data:
   rabbitmq-data:
-  prometheus-data:
-  grafana-data:
+  kong-db-data:
 
 networks:
   app-network:
