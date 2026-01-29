@@ -11,11 +11,12 @@ import { metricsMiddleware, register } from './middleware/metrics.js';
 dotenv.config();
 
 // FIX: Use Environment Variable from Docker, fallback to localhost only for non-docker dev
-const rabbitUrl = process.env.RABBITMQ_URL || 'amqp://localhost:5672';
+const rabbitUrl = process.env.RABBITMQ_URL || 'amqp://admin:admin@localhost:5672';
 const rabbitMQ = new RabbitMQConnectionManager(rabbitUrl);
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3005;
+
 
 app.use(cors());
 app.use(express.json());
@@ -45,7 +46,7 @@ async function start() {
   try {
     // 1. Connect DB
     await testConnection();
-    
+
     // 2. Connect RabbitMQ
     console.log(`Attempting to connect to RabbitMQ at: ${rabbitUrl}`);
     await rabbitMQ.connect();
@@ -58,5 +59,17 @@ async function start() {
     process.exit(1);
   }
 }
+
+
+process.on('uncaughtException', (err) => {
+  const fs = require('fs');
+  fs.writeFileSync('crash.log', `Uncaught Exception: ${err.message}\n${err.stack}\n`, { flag: 'a' });
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  const fs = require('fs');
+  fs.writeFileSync('crash.log', `Unhandled Rejection: ${reason}\n`, { flag: 'a' });
+});
 
 start();
