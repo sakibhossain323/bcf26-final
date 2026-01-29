@@ -29,8 +29,35 @@ jobs:
             inventory-service:
               - 'inventory-service/**'
 
-  build-and-push:
+  test:
     needs: check-changes
+    if: ${{ needs.check-changes.outputs.services != '[]' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: ${{ fromJSON(needs.check-changes.outputs.services) }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: |
+          cd ${{ matrix.service }}
+          npm install
+
+      - name: Run Tests
+        run: |
+          cd ${{ matrix.service }}
+          npm test
+
+  build-and-push:
+    needs: [check-changes, test]
     if: ${{ needs.check-changes.outputs.services != '[]' }}
     runs-on: ubuntu-latest
     strategy:
