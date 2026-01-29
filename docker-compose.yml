@@ -175,6 +175,20 @@ services:
     networks:
       - app-network
 
+  kong-config:
+    image: curlimages/curl
+    container_name: kong-config
+    command: /bin/sh /scripts/configure-kong.sh
+    environment:
+      KONG_ADMIN_URL: http://kong:8001
+    volumes:
+      - ./scripts/configure-kong.sh:/scripts/configure-kong.sh
+    depends_on:
+      kong:
+        condition: service_healthy
+    networks:
+      - app-network
+
 volumes:
   order-db-data:
   inventory-db-data:
