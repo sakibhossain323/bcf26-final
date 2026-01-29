@@ -6,9 +6,9 @@ KONG_ADMIN_URL="http://localhost:8001"
 echo "🔌 Configuring Kong Gateway..."
 
 # 1. Add Order Service
-echo "   > Adding Order Service (http://order-service:3005)..."
+echo "   > Adding Order Service (http://order-service:3001)..."
 curl -s -X PUT $KONG_ADMIN_URL/services/order-service \
-  -d url=http://order-service:3005
+  -d url=http://order-service:3001
 
 # 2. Add Route for Order Service
 echo "   > Adding Route for Order Service (/api/orders)..."
